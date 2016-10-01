@@ -1,9 +1,16 @@
 package com.mimming.hacks.starter;
 
+import android.content.pm.PackageManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationManager;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -19,6 +26,12 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.HashMap;
 
+/**
+ * An activity that displays a map, and synchronizes markers with Firebase.
+ *
+ * Tap the map to create a marker.
+ * Tap a marker to delete it.
+ */
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     // Where the map data lives in Firebase
@@ -48,14 +61,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         firebaseRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                HashMap markerMap = (HashMap)dataSnapshot.getValue();
+                LatLng myLatLon = dataSnapshot.getValue(LatLngWrapper.class).toLatLng();
 
-                LatLng myLatLon = new LatLng(
-                        (Double)markerMap.get("lat"),
-                        (Double)markerMap.get("lon"));
+                // stash the key in the title, for recall later
 
-                // stash the key in the title
-                Marker myMarker = mMap.addMarker(new MarkerOptions().position(myLatLon).title(dataSnapshot.getKey()));
+                Marker myMarker = mMap.addMarker(new MarkerOptions()
+                        .position(myLatLon).draggable(true).title(dataSnapshot.getKey()));
 
                 // cache the marker locally
                 markers.put(dataSnapshot.getKey(), myMarker);
@@ -63,11 +74,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-                HashMap markerMap = (HashMap)dataSnapshot.getValue();
-
-                LatLng myLatLon = new LatLng(
-                        (Double)markerMap.get("lat"),
-                        (Double)markerMap.get("lon"));
+                LatLng myLatLon = dataSnapshot.getValue(LatLngWrapper.class).toLatLng();
 
                 // Move markers on the map if changed on Firebase
                 Marker changedMarker = markers.get(dataSnapshot.getKey());
@@ -101,6 +108,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        // Listen for marker clicks
         googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
@@ -111,23 +119,51 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
+        // Listen for map clicks
         googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(final LatLng latLng) {
                 // Taps create new markers in Firebase
-                firebaseRef.push().setValue(new HashMap() {{
-                    put("lat", latLng.latitude);
-                    put("lon", latLng.longitude);
-                }});
+                // This works because jackson can figure out LatLng
+                firebaseRef.push().setValue(new LatLngWrapper(latLng));
+            }
+        });
+        // Listen for marker drags
+        mMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
+            @Override
+            public void onMarkerDragStart(Marker marker) {
+                // not implemented
+            }
+
+            @Override
+            public void onMarkerDrag(Marker marker) {
+                // not implemented
+            }
+
+            @Override
+            public void onMarkerDragEnd(Marker marker) {
+                firebaseRef.child(marker.getTitle()).setValue(new LatLngWrapper(marker.getPosition()));
             }
         });
 
 
+
         // Zoom to device's current location
-        LatLng xavierMarker = new LatLng(29.9648943,-90.1090941);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(xavierMarker, 16.0f));
-        mMap.addMarker(
-                new MarkerOptions().position(
-                        new LatLng(29.9648943,-90.1095941))).remove();
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
+            LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+            String provider = locationManager.getBestProvider(new Criteria(), true);
+            Location myLocation = locationManager.getLastKnownLocation(provider);
+            if(myLocation != null) {
+                LatLng currentLatLng = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLatLng));
+                mMap.moveCamera(CameraUpdateFactory.zoomTo(14));
+            } else {
+                Log.v(TAG, "Can't figure out current location :(");
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(29.9648943,-90.1095941)));
+                mMap.moveCamera(CameraUpdateFactory.zoomTo(14));
+            }
+        }
     }
 }
