@@ -21,12 +21,17 @@ import java.util.HashMap;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
+    // Where the map data lives in Firebase
+    public static final String MAP_PATH = "/map/";
+
+    // A cache of map points displayed on the map
     private HashMap<String, Marker> markers = new HashMap<String, Marker>();
 
-    public static final String TAG = "MapsActivity";
+    public static final String TAG = MapsActivity.class.getSimpleName();
     private GoogleMap mMap;
+
     FirebaseDatabase database;
-    DatabaseReference myRef;
+    DatabaseReference firebaseRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,13 +42,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        // start Firebase
-//        Firebase.setAndroidContext(this);
         database = FirebaseDatabase.getInstance();
-        myRef = database.getReference("/");
+        firebaseRef = database.getReference(MAP_PATH);
 
-
-        myRef.addChildEventListener(new ChildEventListener() {
+        firebaseRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 HashMap markerMap = (HashMap)dataSnapshot.getValue();
@@ -57,64 +59,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 // cache the marker locally
                 markers.put(dataSnapshot.getKey(), myMarker);
-
-
             }
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                HashMap markerMap = (HashMap)dataSnapshot.getValue();
 
+                LatLng myLatLon = new LatLng(
+                        (Double)markerMap.get("lat"),
+                        (Double)markerMap.get("lon"));
+
+                // Move markers on the map if changed on Firebase
+                Marker changedMarker = markers.get(dataSnapshot.getKey());
+                changedMarker.setPosition(myLatLon);
             }
 
             @Override
             public void onChildRemoved(DataSnapshot dataSnapshot) {
+                // When markers are removed from
                 Marker deadMarker = markers.get(dataSnapshot.getKey());
                 deadMarker.remove();
 
                 markers.remove(dataSnapshot.getKey());
-
             }
 
             @Override
             public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                // This won't happen to our simple list, but log just in case
                 Log.v(TAG, "moved !" + dataSnapshot.getValue());
-
             }
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
+                // Ignore cancelations (but log just in case)
                 Log.v(TAG, "canceled!" + databaseError.getMessage());
             }
         });
-
-
     }
 
 
-
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
-                /**
-                 * remove markers when clicked
-                 */
-//                marker.remove();
+                // Remove map markers from Firebase when tapped
                 String firebaseId = marker.getTitle();
-                // Remove from Firebase
-                myRef.child(firebaseId).removeValue();
-                // remove from map
+                firebaseRef.child(firebaseId).removeValue();
                 return true;
             }
         });
@@ -122,27 +114,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(final LatLng latLng) {
-                // send to Firebase
-                myRef.push().setValue(new HashMap() {{
+                // Taps create new markers in Firebase
+                firebaseRef.push().setValue(new HashMap() {{
                     put("lat", latLng.latitude);
                     put("lon", latLng.longitude);
                 }});
-//                mMap.addMarker(
-//                        new MarkerOptions().position(latLng));
             }
         });
 
 
-        // Add a marker in Sydney and move the camera
+        // Zoom to device's current location
         LatLng xavierMarker = new LatLng(29.9648943,-90.1090941);
-//        mMap.addMarker(new MarkerOptions().position(xavierMarker).title("Xavier"));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(xavierMarker, 16.0f));
-
         mMap.addMarker(
                 new MarkerOptions().position(
                         new LatLng(29.9648943,-90.1095941))).remove();
-
-
-
     }
 }
