@@ -25,7 +25,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static final String TAG = "MapsActivity";
     private GoogleMap mMap;
-//    Firebase firebaseRef = new Firebase("https://friendlychat-cdbf4.firebaseio.com/");
     FirebaseDatabase database;
     DatabaseReference myRef;
 
