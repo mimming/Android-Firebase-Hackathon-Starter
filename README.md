@@ -19,4 +19,4 @@ Do this stuff to use this project.
 0. Paste your API key into `app/src/debug/res/values/google_maps_api.xml`
 
 ## License and stuff
-APL 2.0
+MIT
