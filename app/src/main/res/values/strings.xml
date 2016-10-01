@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Hacks Starter</string>
-    <string name="title_activity_maps">Map Hack</string>
+    <string name="title_activity_maps">HackMap</string>
+    <string name="title_activity_chat">HackChat</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_send_button">Send</string>
 </resources>

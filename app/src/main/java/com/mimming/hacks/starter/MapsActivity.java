@@ -9,8 +9,6 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -43,8 +41,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final String TAG = MapsActivity.class.getSimpleName();
     private GoogleMap mMap;
 
-    FirebaseDatabase database;
-    DatabaseReference firebaseRef;
+    private FirebaseDatabase mFirebaseDatabase;
+    private DatabaseReference mFirebaseRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,10 +53,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        database = FirebaseDatabase.getInstance();
-        firebaseRef = database.getReference(MAP_PATH);
+        mFirebaseDatabase = FirebaseDatabase.getInstance();
+        mFirebaseRef = mFirebaseDatabase.getReference(MAP_PATH);
 
-        firebaseRef.addChildEventListener(new ChildEventListener() {
+        mFirebaseRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 LatLng myLatLon = dataSnapshot.getValue(LatLngWrapper.class).toLatLng();
@@ -114,7 +112,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public boolean onMarkerClick(Marker marker) {
                 // Remove map markers from Firebase when tapped
                 String firebaseId = marker.getTitle();
-                firebaseRef.child(firebaseId).removeValue();
+                mFirebaseRef.child(firebaseId).removeValue();
                 return true;
             }
         });
@@ -125,7 +123,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onMapClick(final LatLng latLng) {
                 // Taps create new markers in Firebase
                 // This works because jackson can figure out LatLng
-                firebaseRef.push().setValue(new LatLngWrapper(latLng));
+                mFirebaseRef.push().setValue(new LatLngWrapper(latLng));
             }
         });
         // Listen for marker drags
@@ -142,7 +140,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             @Override
             public void onMarkerDragEnd(Marker marker) {
-                firebaseRef.child(marker.getTitle()).setValue(new LatLngWrapper(marker.getPosition()));
+                mFirebaseRef.child(marker.getTitle()).setValue(new LatLngWrapper(marker.getPosition()));
             }
         });
 
