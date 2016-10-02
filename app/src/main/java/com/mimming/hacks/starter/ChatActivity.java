@@ -29,6 +29,8 @@ public class ChatActivity extends AppCompatActivity {
 
     private List<String> mChatBufferList;
 
+    ArrayAdapter mChatBufferAdapter;
+
     private FirebaseDatabase mFirebaseDatabase;
     private DatabaseReference mFirebaseRef;
 
@@ -42,10 +44,10 @@ public class ChatActivity extends AppCompatActivity {
 
         mChatBuffer = (ListView)findViewById(R.id.chat_buffer);
         mChatBufferList = new ArrayList<String>();
-        ArrayAdapter adapter =
+        mChatBufferAdapter =
                 new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, mChatBufferList);
         ListView listView = (ListView) findViewById(R.id.chat_buffer);
-        listView.setAdapter(adapter);
+        listView.setAdapter(mChatBufferAdapter);
 
         mChatMessage = (EditText)findViewById(R.id.message);
 
@@ -56,15 +58,6 @@ public class ChatActivity extends AppCompatActivity {
                 String chatMessage = mChatMessage.getText().toString();
                 mChatMessage.setText("");
                 mFirebaseRef.push().setValue(chatMessage);
-
-                // hide the keybaord so we can see the new messages
-                InputMethodManager imm = (InputMethodManager) self.getSystemService(Activity.INPUT_METHOD_SERVICE);
-                View view = self.getCurrentFocus();
-                if (view == null) {
-                    view = new View(self);
-                }
-                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-
             }
         });
 
@@ -75,6 +68,7 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 mChatBufferList.add(dataSnapshot.getValue(String.class));
+                mChatBufferAdapter.notifyDataSetChanged();
             }
 
             @Override
